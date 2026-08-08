@@ -3,11 +3,14 @@ zerops:
     build:
       base: python@3.12
       buildCommands:
-        - pip install -r requirements.txt
-      deployFiles: ./
-      cache: ~/.cache/pip
+        - pip install -r requirements.txt --target ./app-packages
+      deployFiles:
+        - ./
+      cache: app-packages
     run:
       base: python@3.12
+      envVariables:
+        PYTHONPATH: /var/www/app-packages
       ports:
         - port: 8000
           httpSupport: true
