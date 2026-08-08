@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 import yaml
 
@@ -18,9 +19,9 @@ SERVICE_MAP = {
 }
 
 
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
 def home():
-    return {"greeting": "Hello from Compose-to-Zerops!", "status": "running"}
+    return PAGE
 
 
 def detect_type(name, definition):
@@ -100,3 +101,78 @@ def convert(req: ConvertRequest):
         "issues": issues,
         "zerops_import_yaml": yaml.dump(import_yaml, sort_keys=False),
     }
+PAGE = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Compose to Zerops</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, system-ui, sans-serif; background:#0d1117; color:#e6edf3; margin:0; padding:24px; }
+  .wrap { max-width: 1000px; margin: 0 auto; }
+  h1 { font-size: 24px; margin-bottom: 4px; }
+  p.sub { color:#8b949e; margin-top:0; }
+  textarea { width:100%; height:220px; background:#161b22; color:#e6edf3; border:1px solid #30363d; border-radius:8px; padding:12px; font-family:monospace; font-size:13px; }
+  button { margin-top:12px; background:#238636; color:#fff; border:none; padding:10px 20px; border-radius:8px; font-size:15px; cursor:pointer; }
+  button:hover { background:#2ea043; }
+  .cols { display:flex; gap:16px; flex-wrap:wrap; margin-top:20px; }
+  .card { flex:1; min-width:280px; background:#161b22; border:1px solid #30363d; border-radius:8px; padding:16px; }
+  .card h2 { font-size:15px; margin-top:0; color:#58a6ff; }
+  pre { white-space:pre-wrap; font-size:12px; color:#e6edf3; }
+  .issue { background:#3d1c1c; border-left:3px solid #f85149; padding:8px; margin:6px 0; border-radius:4px; font-size:13px; }
+  .map-row { padding:6px 0; border-bottom:1px solid #21262d; font-size:13px; }
+  .zt { color:#7ee787; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Compose → Zerops</h1>
+  <p class="sub">Paste a docker-compose file. Get the Zerops config, service mapping, and migration warnings.</p>
+  <textarea id="input" placeholder="Paste your docker-compose.yml here..."></textarea>
+  <br>
+  <button onclick="convert()">Convert to Zerops</button>
+  <div class="cols" id="results" style="display:none;">
+    <div class="card">
+      <h2>Service Mapping</h2>
+      <div id="mapping"></div>
+    </div>
+    <div class="card">
+      <h2>Migration Warnings</h2>
+      <div id="issues"></div>
+    </div>
+    <div class="card">
+      <h2>Generated zerops import YAML</h2>
+      <pre id="yaml"></pre>
+    </div>
+  </div>
+</div>
+<script>
+async function convert() {
+  const compose = document.getElementById('input').value;
+  const res = await fetch('/convert', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ compose })
+  });
+  const data = await res.json();
+  document.getElementById('results').style.display = 'flex';
+  if (data.error) {
+    document.getElementById('mapping').innerHTML = '<div class="issue">' + data.error + '</div>';
+    document.getElementById('issues').innerHTML = '';
+    document.getElementById('yaml').textContent = '';
+    return;
+  }
+  document.getElementById('mapping').innerHTML = data.mapping.map(m =>
+    '<div class="map-row">' + m.service + ' &rarr; <span class="zt">' + m.zerops_type + '</span></div>'
+  ).join('');
+  document.getElementById('issues').innerHTML = data.issues.length
+    ? data.issues.map(i => '<div class="issue">' + i + '</div>').join('')
+    : '<p style="color:#7ee787">No issues found.</p>';
+  document.getElementById('yaml').textContent = data.zerops_import_yaml;
+}
+</script>
+</body>
+</html>
+"""
