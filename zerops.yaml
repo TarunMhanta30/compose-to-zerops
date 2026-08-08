@@ -1,0 +1,14 @@
+zerops:
+  - setup: app
+    build:
+      base: python@3.12
+      buildCommands:
+        - pip install -r requirements.txt
+      deployFiles: ./
+      cache: ~/.cache/pip
+    run:
+      base: python@3.12
+      ports:
+        - port: 8000
+          httpSupport: true
+      start: gunicorn main:app -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000

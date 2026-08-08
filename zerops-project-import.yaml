@@ -1,0 +1,6 @@
+project:
+  name: compose-to-zerops
+services:
+  - hostname: app
+    type: python@3.12
+    enableSubdomainAccess: true
